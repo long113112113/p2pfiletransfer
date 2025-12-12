@@ -4,11 +4,13 @@ public class PeerInfo {
     private String ip;
     private String username;
     private int port;
+    private String peerID;
 
-    public PeerInfo(String ip, String username, int port) {
+    public PeerInfo(String ip, String username, int port, String peerID) {
         this.ip = ip;
         this.username = username;
         this.port = port;
+        this.peerID = peerID;
     }
 
     public String getIp() {
@@ -23,9 +25,13 @@ public class PeerInfo {
         return port;
     }
 
+    public String getPeerID() {
+        return peerID;
+    }
+
     @Override
     public String toString() {
-        return username + " (" + ip + ":" + port + ")";
+        return username + " [" + peerID + "] (" + ip + ")";
     }
 
     @Override

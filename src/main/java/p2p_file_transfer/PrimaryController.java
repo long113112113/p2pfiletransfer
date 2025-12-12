@@ -2,6 +2,8 @@ package p2p_file_transfer;
 
 import java.io.File;
 import java.net.URL;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.ResourceBundle;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -22,6 +24,7 @@ import p2p_file_transfer.network.ClientNode;
 import p2p_file_transfer.network.PeerDiscoveryService;
 import p2p_file_transfer.network.ServerListener;
 import p2p_file_transfer.network.ServerNode;
+import p2p_file_transfer.util.CryptoUtils;
 import p2p_file_transfer.util.NetworkUtil;
 
 public class PrimaryController implements Initializable, ServerListener {
@@ -54,7 +57,7 @@ public class PrimaryController implements Initializable, ServerListener {
     @FXML
     private TextArea txtChatArea;
     @FXML
-    private TextField txtIpAddress;
+    private TextField txtPeerID;
     @FXML
     private TextField txtMessage;
     @FXML
@@ -68,6 +71,7 @@ public class PrimaryController implements Initializable, ServerListener {
     private PeerDiscoveryService discoveryService;
     private static final int PORT = 9999;
     private File selectedFile;
+    private Map<String, PeerInfo> cachedPeers = new HashMap<>(); // PeerID -> PeerInfo
 
     // --- Dragging Variables ---
     private double xOffset = 0;
@@ -82,6 +86,12 @@ public class PrimaryController implements Initializable, ServerListener {
         String username = SessionManager.getInstance().getUsername();
         String myIp = NetworkUtil.getMyIP();
 
+        // Generate Peer ID from public key
+        String myPeerID = "UNKNOWN";
+        if (SessionManager.getInstance().getPublicKey() != null) {
+            myPeerID = CryptoUtils.generatePeerID(SessionManager.getInstance().getPublicKey());
+        }
+
         clientNode = new ClientNode();
         serverNode = new ServerNode(PORT, this);
         new Thread(serverNode).start();
@@ -89,14 +99,14 @@ public class PrimaryController implements Initializable, ServerListener {
         discoveryService = new PeerDiscoveryService(
                 username != null ? username : "Guest",
                 PORT,
-                myIp);
+                myIp,
+                myPeerID);
         discoveryService.startListener();
 
-        lblUser.setText("User: " + (username != null ? username : "Guest"));
+        lblUser.setText((username != null ? username : "Guest") + " | ID: " + myPeerID);
 
-        appendLog("=== P2P CHAT SYSTEM STARTED ===");
-        appendLog("My IP Address: " + myIp);
-        appendLog("Listening on Port: " + PORT);
+        appendLog("My Peer ID: " + myPeerID);
+        appendLog("My IP: " + myIp + ":" + PORT);
         appendLog("--------------------------------\n");
 
         makeDraggable(chatPanel);
@@ -204,18 +214,28 @@ public class PrimaryController implements Initializable, ServerListener {
 
     @FXML
     private void sendMessage(ActionEvent event) {
-        String targetIp = txtIpAddress.getText().trim();
+        String targetPeerID = txtPeerID.getText().trim().toUpperCase();
         String message = txtMessage.getText().trim();
 
-        if (targetIp.isEmpty()) {
-            appendLog("[System]: Pls enter receiver IP!");
+        if (targetPeerID.isEmpty()) {
+            appendLog("[System]: Please enter Peer ID!");
             return;
         }
 
+        // Resolve Peer ID to IP
+        PeerInfo targetPeer = cachedPeers.get(targetPeerID);
+        if (targetPeer == null) {
+            appendLog("[System]: Peer ID '" + targetPeerID + "' not found. Click Refresh in Peers panel first.");
+            return;
+        }
+
+        String targetIp = targetPeer.getIp();
+        int targetPort = targetPeer.getPort();
+
         try {
             if (this.selectedFile != null) {
-                clientNode.sendFile(targetIp, PORT, this.selectedFile);
-                appendLog("Me: [Sending File] " + this.selectedFile.getName());
+                clientNode.sendFile(targetIp, targetPort, this.selectedFile);
+                appendLog("Me → [" + targetPeerID + "]: [Sending File] " + this.selectedFile.getName());
                 this.selectedFile = null;
                 txtMessage.setEditable(true);
                 txtMessage.setStyle("");
@@ -224,19 +244,19 @@ public class PrimaryController implements Initializable, ServerListener {
                 if (message.isEmpty())
                     return;
 
-                clientNode.sendText(targetIp, PORT, message);
-                appendLog("Me: " + message);
+                clientNode.sendText(targetIp, targetPort, message);
+                appendLog("Me → [" + targetPeerID + "]: " + message);
                 txtMessage.clear();
             }
         } catch (Exception e) {
-            appendLog("[Error]: Cant send. " + e.getMessage());
+            appendLog("[Error]: Can't send. " + e.getMessage());
         }
     }
 
     @Override
     public void onMessageReceived(String message) {
         Platform.runLater(() -> {
-            appendLog("Friend [" + txtIpAddress.getText() + "]: " + message);
+            appendLog("Friend: " + message);
         });
     }
 
@@ -261,10 +281,13 @@ public class PrimaryController implements Initializable, ServerListener {
         discoveryService.discoverPeers(peers -> {
             Platform.runLater(() -> {
                 peerListView.getItems().clear();
+                cachedPeers.clear();
+
                 if (peers.isEmpty()) {
                     peerListView.getItems().add("No peers found");
                 } else {
                     for (PeerInfo peer : peers) {
+                        cachedPeers.put(peer.getPeerID(), peer);
                         peerListView.getItems().add(peer.toString());
                     }
                 }
@@ -277,11 +300,12 @@ public class PrimaryController implements Initializable, ServerListener {
         if (selected == null || selected.equals("Scanning...") || selected.equals("No peers found")) {
             return;
         }
-        int start = selected.indexOf("(");
-        int end = selected.indexOf(":");
+        // Extract Peer ID from format: "username [PEER_ID] (IP)"
+        int start = selected.indexOf("[");
+        int end = selected.indexOf("]");
         if (start != -1 && end != -1) {
-            String ip = selected.substring(start + 1, end);
-            txtIpAddress.setText(ip);
+            String peerID = selected.substring(start + 1, end);
+            txtPeerID.setText(peerID);
         }
     }
 

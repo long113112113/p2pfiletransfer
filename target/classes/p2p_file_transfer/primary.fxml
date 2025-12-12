@@ -72,7 +72,7 @@
                      <TextArea fx:id="txtChatArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS" />
                      
                      <HBox alignment="CENTER_LEFT" spacing="10.0">
-                        <TextField fx:id="txtIpAddress" promptText="Receiver IP" HBox.hgrow="ALWAYS" />
+                        <TextField fx:id="txtPeerID" promptText="Peer ID (e.g. A3F7B2C1)" HBox.hgrow="ALWAYS" />
                      </HBox>
 
                      <HBox alignment="CENTER_LEFT" spacing="10.0">

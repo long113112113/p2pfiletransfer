@@ -162,6 +162,29 @@ public class CryptoUtils {
         return keyFactory.generatePublic(new X509EncodedKeySpec(encoded));
     }
 
+    /**
+     * Generates a short Peer ID from a PublicKey using SHA-256 hash.
+     * Returns first 8 characters of the hex-encoded hash in uppercase.
+     */
+    public static String generatePeerID(PublicKey publicKey) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(publicKey.getEncoded());
+            StringBuilder hexString = new StringBuilder();
+            for (int i = 0; i < 4; i++) { // Only first 4 bytes = 8 hex chars
+                String hex = Integer.toHexString(0xff & hash[i]);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+            return hexString.toString().toUpperCase();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return "UNKNOWN";
+        }
+    }
+
     private static SecretKey deriveKey(String password, byte[] salt)
             throws NoSuchAlgorithmException, InvalidKeySpecException {
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");

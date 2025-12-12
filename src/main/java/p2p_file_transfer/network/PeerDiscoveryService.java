@@ -28,12 +28,15 @@ public class PeerDiscoveryService {
     private String myUsername;
     private int myPort;
     private String myIp;
+    private String myPeerID;
 
-    public PeerDiscoveryService(String username, int port, String myIp) {
+    public PeerDiscoveryService(String username, int port, String myIp, String peerID) {
         this.myUsername = username;
         this.myPort = port;
         this.myIp = myIp;
-        System.out.println("[Discovery] Initialized - Username: " + username + ", Port: " + port + ", IP: " + myIp);
+        this.myPeerID = peerID;
+        System.out.println("[Discovery] Initialized - Username: " + username + ", Port: " + port + ", IP: " + myIp
+                + ", PeerID: " + peerID);
     }
 
     public void startListener() {
@@ -61,7 +64,8 @@ public class PeerDiscoveryService {
                                 "[Discovery] Received: '" + received + "' from " + senderIp + ":" + packet.getPort());
 
                         if (received.equals(DISCOVER_REQUEST)) {
-                            String response = DISCOVER_RESPONSE + "|" + myUsername + "|" + myPort;
+                            // Response format: P2P_RESPONSE|username|port|peerID
+                            String response = DISCOVER_RESPONSE + "|" + myUsername + "|" + myPort + "|" + myPeerID;
                             byte[] responseData = response.getBytes();
                             DatagramPacket responsePacket = new DatagramPacket(
                                     responseData,
@@ -108,15 +112,13 @@ public class PeerDiscoveryService {
 
             try (DatagramSocket socket = new DatagramSocket()) {
                 socket.setBroadcast(true);
-                socket.setSoTimeout(500); // Short timeout for each receive
+                socket.setSoTimeout(500);
 
                 byte[] sendData = DISCOVER_REQUEST.getBytes();
 
-                // Get all broadcast addresses
                 List<InetAddress> broadcastAddresses = getBroadcastAddresses();
                 System.out.println("[Discovery] Found " + broadcastAddresses.size() + " broadcast addresses");
 
-                // Send to all broadcast addresses
                 for (InetAddress broadcastAddr : broadcastAddresses) {
                     try {
                         DatagramPacket sendPacket = new DatagramPacket(
@@ -146,14 +148,15 @@ public class PeerDiscoveryService {
 
                         if (received.startsWith(DISCOVER_RESPONSE)) {
                             String[] parts = received.split("\\|");
-                            if (parts.length == 3) {
+                            // Format: P2P_RESPONSE|username|port|peerID
+                            if (parts.length >= 4) {
                                 String peerIp = senderIp;
                                 String peerUsername = parts[1];
                                 int peerPort = Integer.parseInt(parts[2]);
+                                String peerID = parts[3];
 
-                                // Don't add self
                                 if (!peerIp.equals(myIp)) {
-                                    PeerInfo peer = new PeerInfo(peerIp, peerUsername, peerPort);
+                                    PeerInfo peer = new PeerInfo(peerIp, peerUsername, peerPort, peerID);
                                     foundPeers.add(peer);
                                     System.out.println("[Discovery] Found peer: " + peer);
                                 } else {
@@ -162,7 +165,7 @@ public class PeerDiscoveryService {
                             }
                         }
                     } catch (SocketTimeoutException e) {
-                        // Continue listening until total timeout
+                        // Continue listening
                     }
                 }
             } catch (IOException e) {
@@ -181,14 +184,12 @@ public class PeerDiscoveryService {
     private List<InetAddress> getBroadcastAddresses() {
         List<InetAddress> broadcastList = new ArrayList<>();
 
-        // Always add global broadcast
         try {
             broadcastList.add(InetAddress.getByName("255.255.255.255"));
         } catch (Exception e) {
             // ignore
         }
 
-        // Get subnet broadcast addresses from all network interfaces
         try {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()) {
