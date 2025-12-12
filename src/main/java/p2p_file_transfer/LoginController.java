@@ -8,6 +8,9 @@ import javafx.scene.control.TextField;
 import p2p_file_transfer.util.CryptoUtils;
 
 import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import p2p_file_transfer.manager.SessionManager;
 
 public class LoginController {
 
@@ -35,15 +38,27 @@ public class LoginController {
         try {
             // Attempt to load and decrypt keys
             statusLabel.setText("Verifying credentials...");
-            CryptoUtils.loadEncryptedPrivateKey(pemFilename, password);
+            PrivateKey privateKey = CryptoUtils.loadEncryptedPrivateKey(pemFilename, password);
 
-            // If successful, we can optionally load the public key too, or derive it if
-            // needed,
-            // but for now just proceeding implies 'Login Successful'.
-            // In a real app, you might want to store the keys in a UserSession object.
+            // Load public key
+            String pubFilename = username + ".pub";
+            PublicKey publicKey = null;
+            try {
+                publicKey = CryptoUtils.loadPublicKey(pubFilename);
+            } catch (Exception e) {
+                System.err.println("Warning: Public key not found or invalid.");
+            }
+
+            // Store in SessionManager
+            SessionManager.getInstance().setUsername(username);
+            SessionManager.getInstance().setPrivateKey(privateKey);
+            if (publicKey != null) {
+                SessionManager.getInstance().setPublicKey(publicKey);
+            }
 
             System.out.println("Login successful for user: " + username);
             App.setRoot("primary");
+            App.setMaximized(true);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -78,8 +93,14 @@ public class LoginController {
             CryptoUtils.saveEncryptedPrivateKey(keyPair.getPrivate(), password, pemFilename);
             CryptoUtils.savePublicKey(keyPair.getPublic(), pubFilename);
 
+            // Store in SessionManager
+            SessionManager.getInstance().setUsername(username);
+            SessionManager.getInstance().setPrivateKey(keyPair.getPrivate());
+            SessionManager.getInstance().setPublicKey(keyPair.getPublic());
+
             System.out.println("Registration successful for user: " + username);
             App.setRoot("primary");
+            App.setMaximized(true);
 
         } catch (Exception e) {
             e.printStackTrace();

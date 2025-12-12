@@ -4,7 +4,8 @@
 }
 
 .root {
-    -fx-background-color: #202020;
+    -fx-background-color: #1b1b1b;
+    /* Darker background for the "Desktop" feel */
     -fx-font-family: 'Ubuntu Sans', sans-serif;
     -fx-font-size: 14px;
 }
@@ -38,7 +39,7 @@
     -fx-background-color: #2b2b2b;
 }
 
-/* ScrollBar styling for TextArea */
+/* ScrollBar styling */
 .scroll-bar:horizontal,
 .scroll-bar:vertical {
     -fx-background-color: transparent;
@@ -62,7 +63,7 @@
     -fx-text-fill: #dadada;
     -fx-background-radius: 4;
     -fx-cursor: hand;
-    -fx-padding: 8 16 8 16;
+    -fx-padding: 6 12 6 12;
 }
 
 .button:hover {
@@ -95,4 +96,99 @@
 .status-label {
     -fx-text-fill: #ff6b6b;
     -fx-font-size: 12px;
+}
+
+/* === EGUI Styled Components === */
+
+/* Top Bar */
+.top-bar {
+    -fx-background-color: #252525;
+    -fx-border-color: transparent transparent #333333 transparent;
+    -fx-border-width: 1;
+}
+
+.app-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+}
+
+.stat-label {
+    -fx-font-family: 'Consolas', monospace;
+    -fx-font-size: 12px;
+    -fx-text-fill: #aaaaaa;
+}
+
+.user-label {
+    -fx-font-weight: bold;
+    -fx-text-fill: #4db8ff;
+    /* Light blue accent for user */
+}
+
+/* Side Bar */
+.side-bar {
+    -fx-background-color: #252525;
+    -fx-border-color: transparent #333333 transparent transparent;
+    -fx-border-width: 1;
+    -fx-min-width: 120px;
+}
+
+/* Playground */
+.playground {
+    /* -fx-background-image: url("pattern.png"); */
+    /* Optional: distinct background pattern */
+    /* If no pattern, the root color #1b1b1b applies */
+}
+
+/* Floating Panels */
+.floating-panel {
+    -fx-background-color: #2b2b2b;
+    -fx-background-radius: 6;
+    -fx-border-color: #444444;
+    -fx-border-radius: 6;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(three-pass-box, rgba(0, 0, 0, 0.5), 10, 0, 0, 5);
+}
+
+.panel-header {
+    -fx-background-color: #333333;
+    -fx-background-radius: 6 6 0 0;
+    /* Top rounded only */
+    -fx-padding: 5 10 5 10;
+    -fx-border-color: transparent transparent #444444 transparent;
+    -fx-border-width: 1;
+    -fx-cursor: move;
+}
+
+.close-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #888888;
+    -fx-padding: 0 5 0 5;
+    -fx-font-size: 12px;
+}
+
+.close-btn:hover {
+    -fx-text-fill: #ff5555;
+    -fx-background-color: rgba(255, 85, 85, 0.1);
+}
+
+/* ListView */
+.list-view {
+    -fx-background-color: transparent;
+    -fx-control-inner-background: transparent;
+}
+
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: #dadada;
+    -fx-padding: 5 10 5 10;
+}
+
+.list-cell:filled:selected:focused,
+.list-cell:filled:selected {
+    -fx-background-color: #404040;
+    -fx-text-fill: white;
+}
+
+.list-cell:even {
+    -fx-background-color: #2e2e2e;
 }

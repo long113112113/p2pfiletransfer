@@ -3,37 +3,113 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
 <?import javafx.scene.control.TextArea?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox alignment="CENTER" spacing="15.0" stylesheets="@styles.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="p2p_file_transfer.PrimaryController">
-   <children>
-      <Label styleClass="header-label" text="P2P File Transfer" />
-      
-      <!-- Chat Display Area -->
-      <TextArea fx:id="txtChatArea" editable="false" prefHeight="400.0" prefWidth="600.0" wrapText="true" VBox.vgrow="ALWAYS" />
-      
-      <!-- Connection Input -->
-      <HBox alignment="CENTER_LEFT" spacing="10.0">
+<BorderPane stylesheets="@styles.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="p2p_file_transfer.PrimaryController">
+   
+   <!-- TOP: System Stats & User Info -->
+   <top>
+      <HBox fx:id="topBar" alignment="CENTER_LEFT" spacing="20.0" styleClass="top-bar" BorderPane.alignment="CENTER">
          <children>
-             <Label text="Receiver IP:" />
-            <TextField fx:id="txtIpAddress" promptText="Enter IP (e.g., 192.168.1.5)" HBox.hgrow="ALWAYS" />
+            <Label styleClass="app-title" text="P2P Transfer" />
+            <Region HBox.hgrow="ALWAYS" />
+            
+            <HBox alignment="CENTER" spacing="15.0">
+               <Label fx:id="lblCpu" styleClass="stat-label" text="CPU: 0%" />
+               <Label fx:id="lblRam" styleClass="stat-label" text="RAM: 0MB" />
+               <Label fx:id="lblNetwork" styleClass="stat-label" text="Net: 0 KB/s" />
+            </HBox>
+
+            <Region HBox.hgrow="ALWAYS" />
+            <Label fx:id="lblUser" styleClass="user-label" text="User: Unknown" />
          </children>
+         <padding>
+            <Insets bottom="5.0" left="15.0" right="15.0" top="5.0" />
+         </padding>
       </HBox>
-      
-      <!-- Message Input -->
-      <HBox alignment="CENTER_LEFT" spacing="10.0">
+   </top>
+
+   <!-- LEFT: Menu Sidebar -->
+   <left>
+      <VBox fx:id="sideBar" spacing="10.0" styleClass="side-bar" BorderPane.alignment="CENTER">
          <children>
-            <Button mnemonicParsing="false" onAction="#openFileChooser" text="📎" />
-            <TextField fx:id="txtMessage" onAction="#sendMessage" promptText="Type a message..." HBox.hgrow="ALWAYS" />
-            <Button fx:id="btnSend" minWidth="80.0" defaultButton="true" mnemonicParsing="false" onAction="#sendMessage" text="Send" />
+            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#toggleChat" text="Chat" />
+            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#togglePeers" text="Peers" />
+            <Region VBox.vgrow="ALWAYS" />
+            <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleLogout" text="Logout" />
          </children>
-      </HBox>
-   </children>
-   <padding>
-      <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-   </padding>
-</VBox>
+         <padding>
+            <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+         </padding>
+      </VBox>
+   </left>
+
+   <!-- CENTER: Playground (Floating Windows) -->
+   <center>
+      <AnchorPane fx:id="playground" styleClass="playground" BorderPane.alignment="CENTER">
+         <children>
+            
+            <!-- Floating Window: Chat -->
+            <VBox fx:id="chatPanel" layoutX="50.0" layoutY="50.0" prefHeight="400.0" prefWidth="500.0" spacing="10.0" styleClass="floating-panel">
+               <children>
+                  <HBox alignment="CENTER_LEFT" styleClass="panel-header">
+                     <children>
+                        <Label text="Chat Console" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Button fx:id="btnCollapseChat" onAction="#toggleCollapseChat" styleClass="close-btn" text="−" />
+                        <Button onAction="#toggleChat" styleClass="close-btn" text="X" />
+                     </children>
+                  </HBox>
+                  
+                  <VBox fx:id="chatPanelBody" spacing="10.0" VBox.vgrow="ALWAYS">
+                     <TextArea fx:id="txtChatArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS" />
+                     
+                     <HBox alignment="CENTER_LEFT" spacing="10.0">
+                        <TextField fx:id="txtIpAddress" promptText="Receiver IP" HBox.hgrow="ALWAYS" />
+                     </HBox>
+
+                     <HBox alignment="CENTER_LEFT" spacing="10.0">
+                        <Button mnemonicParsing="false" onAction="#openFileChooser" text="📎" />
+                        <TextField fx:id="txtMessage" onAction="#sendMessage" promptText="Type a message..." HBox.hgrow="ALWAYS" />
+                        <Button fx:id="btnSend" defaultButton="true" mnemonicParsing="false" onAction="#sendMessage" text="Send" />
+                     </HBox>
+                  </VBox>
+               </children>
+               <padding>
+                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+               </padding>
+            </VBox>
+
+            <!-- Floating Window: Peers -->
+            <VBox fx:id="peerPanel" layoutX="600.0" layoutY="50.0" prefHeight="300.0" prefWidth="250.0" spacing="10.0" styleClass="floating-panel">
+               <children>
+                   <HBox alignment="CENTER_LEFT" styleClass="panel-header">
+                     <children>
+                        <Label text="Active Peers" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Button fx:id="btnCollapsePeers" onAction="#toggleCollapsePeers" styleClass="close-btn" text="−" />
+                        <Button onAction="#togglePeers" styleClass="close-btn" text="X" />
+                     </children>
+                  </HBox>
+                  <VBox fx:id="peerPanelBody" spacing="10.0" VBox.vgrow="ALWAYS">
+                     <ListView fx:id="peerListView" VBox.vgrow="ALWAYS" />
+                     <Button maxWidth="1.7976931348623157E308" text="Refresh" />
+                  </VBox>
+               </children>
+               <padding>
+                  <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+               </padding>
+            </VBox>
+
+         </children>
+      </AnchorPane>
+   </center>
+   
+</BorderPane>
