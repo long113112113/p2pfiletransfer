@@ -1,0 +1,98 @@
+@font-face {
+    font-family: 'Ubuntu Sans';
+    src: url('fonts/UbuntuSans-Regular.ttf');
+}
+
+.root {
+    -fx-background-color: #202020;
+    -fx-font-family: 'Ubuntu Sans', sans-serif;
+    -fx-font-size: 14px;
+}
+
+/* Labels */
+.label {
+    -fx-text-fill: #dadada;
+}
+
+/* Text Areas and Fields */
+.text-area,
+.text-field,
+.password-field {
+    -fx-background-color: #2b2b2b;
+    -fx-text-fill: #dadada;
+    -fx-prompt-text-fill: #808080;
+    -fx-background-radius: 4;
+    -fx-border-color: #404040;
+    -fx-border-radius: 4;
+    -fx-border-width: 1;
+}
+
+.text-area:focused,
+.text-field:focused,
+.password-field:focused {
+    -fx-border-color: #707070;
+    -fx-background-color: #303030;
+}
+
+.text-area .content {
+    -fx-background-color: #2b2b2b;
+}
+
+/* ScrollBar styling for TextArea */
+.scroll-bar:horizontal,
+.scroll-bar:vertical {
+    -fx-background-color: transparent;
+}
+
+.scroll-bar:vertical .track,
+.scroll-bar:horizontal .track {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.scroll-bar:vertical .thumb,
+.scroll-bar:horizontal .thumb {
+    -fx-background-color: #505050;
+    -fx-background-radius: 5em;
+}
+
+/* Buttons */
+.button {
+    -fx-background-color: #404040;
+    -fx-text-fill: #dadada;
+    -fx-background-radius: 4;
+    -fx-cursor: hand;
+    -fx-padding: 8 16 8 16;
+}
+
+.button:hover {
+    -fx-background-color: #505050;
+}
+
+.button:pressed {
+    -fx-background-color: #303030;
+}
+
+/* Login specific */
+.login-card {
+    -fx-background-color: #2b2b2b;
+    -fx-background-radius: 8;
+    -fx-border-color: #404040;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 10, 0, 0, 4);
+    -fx-padding: 30;
+    -fx-min-width: 320;
+}
+
+.header-label {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+    -fx-padding: 0 0 20 0;
+}
+
+.status-label {
+    -fx-text-fill: #ff6b6b;
+    -fx-font-size: 12px;
+}
