@@ -100,7 +100,7 @@
                   </HBox>
                   <VBox fx:id="peerPanelBody" spacing="10.0" VBox.vgrow="ALWAYS">
                      <ListView fx:id="peerListView" VBox.vgrow="ALWAYS" />
-                     <Button maxWidth="1.7976931348623157E308" text="Refresh" />
+                     <Button maxWidth="1.7976931348623157E308" onAction="#refreshPeers" text="Refresh" />
                   </VBox>
                </children>
                <padding>

@@ -17,7 +17,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import p2p_file_transfer.manager.SessionManager;
+import p2p_file_transfer.model.PeerInfo;
 import p2p_file_transfer.network.ClientNode;
+import p2p_file_transfer.network.PeerDiscoveryService;
 import p2p_file_transfer.network.ServerListener;
 import p2p_file_transfer.network.ServerNode;
 import p2p_file_transfer.util.NetworkUtil;
@@ -63,6 +65,7 @@ public class PrimaryController implements Initializable, ServerListener {
     // --- Logic & Network ---
     private ServerNode serverNode;
     private ClientNode clientNode;
+    private PeerDiscoveryService discoveryService;
     private static final int PORT = 9999;
     private File selectedFile;
 
@@ -76,29 +79,31 @@ public class PrimaryController implements Initializable, ServerListener {
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
-        // 1. Setup Network & Core Logic
+        String username = SessionManager.getInstance().getUsername();
+        String myIp = NetworkUtil.getMyIP();
+
         clientNode = new ClientNode();
         serverNode = new ServerNode(PORT, this);
         new Thread(serverNode).start();
 
-        // 2. Setup UI Data
-        String username = SessionManager.getInstance().getUsername();
+        discoveryService = new PeerDiscoveryService(
+                username != null ? username : "Guest",
+                PORT,
+                myIp);
+        discoveryService.startListener();
+
         lblUser.setText("User: " + (username != null ? username : "Guest"));
 
-        String myIp = NetworkUtil.getMyIP();
         appendLog("=== P2P CHAT SYSTEM STARTED ===");
         appendLog("My IP Address: " + myIp);
         appendLog("Listening on Port: " + PORT);
         appendLog("--------------------------------\n");
 
-        // 3. Setup Draggable Panels
         makeDraggable(chatPanel);
         makeDraggable(peerPanel);
 
-        // Hide panels initially logic can go here if we want them hidden by default:
-        // peerPanel.setVisible(false);
+        peerListView.setOnMouseClicked(event -> handlePeerClick());
 
-        // 4. Start System Stats Mock Thread
         startSystemStatsThread();
     }
 
@@ -242,6 +247,41 @@ public class PrimaryController implements Initializable, ServerListener {
     public void stopServer() {
         if (serverNode != null) {
             serverNode.stop();
+        }
+        if (discoveryService != null) {
+            discoveryService.stopListener();
+        }
+    }
+
+    @FXML
+    private void refreshPeers() {
+        peerListView.getItems().clear();
+        peerListView.getItems().add("Scanning...");
+
+        discoveryService.discoverPeers(peers -> {
+            Platform.runLater(() -> {
+                peerListView.getItems().clear();
+                if (peers.isEmpty()) {
+                    peerListView.getItems().add("No peers found");
+                } else {
+                    for (PeerInfo peer : peers) {
+                        peerListView.getItems().add(peer.toString());
+                    }
+                }
+            });
+        });
+    }
+
+    private void handlePeerClick() {
+        String selected = peerListView.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.equals("Scanning...") || selected.equals("No peers found")) {
+            return;
+        }
+        int start = selected.indexOf("(");
+        int end = selected.indexOf(":");
+        if (start != -1 && end != -1) {
+            String ip = selected.substring(start + 1, end);
+            txtIpAddress.setText(ip);
         }
     }
 
