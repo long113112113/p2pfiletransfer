@@ -16,7 +16,6 @@ public class ServerNode implements Runnable {
         this.port = port;
         this.isRunning = true;
         this.listener = listener;
-
     }
 
     @Override
@@ -50,12 +49,20 @@ public class ServerNode implements Runnable {
         public void run() {
             try (DataInputStream in = new DataInputStream(socket.getInputStream())) {
                 int type = in.readInt();
+
                 if (type == Packet.TYPE_HELLO) {
+                    String senderPeerID = in.readUTF();
+                    String senderUsername = in.readUTF();
                     String message = in.readUTF();
+
                     if (listener != null) {
-                        listener.onMessageReceived(message);
+                        // Format: "senderUsername [senderPeerID]: message"
+                        String formattedMessage = senderUsername + " [" + senderPeerID + "]: " + message;
+                        listener.onMessageReceived(formattedMessage);
                     }
                 } else if (type == Packet.TYPE_FILE) {
+                    String senderPeerID = in.readUTF();
+                    String senderUsername = in.readUTF();
                     String fileName = in.readUTF();
                     long fileSize = in.readLong();
 
@@ -77,11 +84,13 @@ public class ServerNode implements Runnable {
                     }
 
                     if (listener != null) {
-                        listener.onMessageReceived("[FILE] Đã nhận file: " + fileName + " (Lưu tại " + SAVE_DIR + ")");
+                        String formattedMessage = senderUsername + " [" + senderPeerID + "]: [FILE] " + fileName
+                                + " (Saved to " + SAVE_DIR + ")";
+                        listener.onMessageReceived(formattedMessage);
                     }
                 }
             } catch (EOFException e) {
-                // Client ngắt kết nối
+                // Client disconnected
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
@@ -90,8 +99,6 @@ public class ServerNode implements Runnable {
                 } catch (IOException e) {
                 }
             }
-
         }
     }
-
 }
