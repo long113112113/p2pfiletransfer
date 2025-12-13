@@ -485,6 +485,9 @@ public class PrimaryController implements Initializable, ServerListener {
     @Override
     public void onAuthResult(String peerID, boolean success) {
         Platform.runLater(() -> {
+            // Auto-hide the code panel on the receiver side
+            authCodePanel.setVisible(false);
+
             if (success) {
                 appendLog("[Auth] Peer " + peerID + " authenticated successfully!");
                 // Update peer state in cache

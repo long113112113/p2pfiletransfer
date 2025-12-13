@@ -195,9 +195,7 @@
 
 /* === Authentication Panels === */
 .auth-panel {
-    -fx-background-color: #2a2a3a;
-    -fx-border-color: #5a5aff;
-    -fx-border-width: 2;
+    /* Inherits from .floating-panel - no custom background/border */
 }
 
 .auth-peer-name {
@@ -206,17 +204,18 @@
 }
 
 .auth-code {
-    -fx-font-size: 36px;
+    -fx-font-size: 32px;
     -fx-font-weight: bold;
-    -fx-text-fill: #00ff88;
+    -fx-text-fill: #4db8ff;
     -fx-font-family: 'Consolas', monospace;
-    -fx-padding: 10 20 10 20;
-    -fx-background-color: #1a1a2a;
-    -fx-background-radius: 8;
+    -fx-padding: 8 16 8 16;
+    -fx-background-color: #1e1e1e;
+    -fx-background-radius: 4;
+    -fx-border-color: #404040;
+    -fx-border-radius: 4;
 }
 
 .auth-hint {
     -fx-font-size: 11px;
     -fx-text-fill: #888888;
-    -fx-font-style: italic;
 }
