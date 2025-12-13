@@ -1,16 +1,28 @@
 package p2p_file_transfer.model;
 
+import java.security.PublicKey;
+
 public class PeerInfo {
     private String ip;
     private String username;
     private int port;
     private String peerID;
+    private PublicKey publicKey;
 
     public PeerInfo(String ip, String username, int port, String peerID) {
         this.ip = ip;
         this.username = username;
         this.port = port;
         this.peerID = peerID;
+        this.publicKey = null;
+    }
+
+    public PeerInfo(String ip, String username, int port, String peerID, PublicKey publicKey) {
+        this.ip = ip;
+        this.username = username;
+        this.port = port;
+        this.peerID = peerID;
+        this.publicKey = publicKey;
     }
 
     public String getIp() {
@@ -27,6 +39,14 @@ public class PeerInfo {
 
     public String getPeerID() {
         return peerID;
+    }
+
+    public PublicKey getPublicKey() {
+        return publicKey;
+    }
+
+    public void setPublicKey(PublicKey publicKey) {
+        this.publicKey = publicKey;
     }
 
     @Override

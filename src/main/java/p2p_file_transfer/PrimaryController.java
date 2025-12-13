@@ -110,7 +110,9 @@ public class PrimaryController implements Initializable, ServerListener {
         discoveryService = new PeerDiscoveryService(
                 username != null ? username : "Guest",
                 PORT,
-                myPeerID);
+                myPeerID,
+                SessionManager.getInstance().getPrivateKey(),
+                SessionManager.getInstance().getPublicKey());
         discoveryService.setOnPeerDiscovered(this::handlePeerDiscovered);
         discoveryService.startListener();
 

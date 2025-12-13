@@ -191,4 +191,84 @@ public class CryptoUtils {
         PBEKeySpec spec = new PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, AES_KEY_SIZE);
         return new SecretKeySpec(factory.generateSecret(spec).getEncoded(), "AES");
     }
+
+    // ==================== DIGITAL SIGNATURE METHODS ====================
+
+    /**
+     * Signs a message using RSA private key with SHA256.
+     * 
+     * @param message    the message to sign
+     * @param privateKey the RSA private key
+     * @return Base64-encoded signature string
+     * @throws Exception if signing fails
+     */
+    public static String sign(String message, PrivateKey privateKey) throws Exception {
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(privateKey);
+        signature.update(message.getBytes(StandardCharsets.UTF_8));
+        return Base64.getEncoder().encodeToString(signature.sign());
+    }
+
+    /**
+     * Verifies a signature using RSA public key.
+     * 
+     * @param message      the original message
+     * @param signatureStr Base64-encoded signature
+     * @param publicKey    the RSA public key
+     * @return true if signature is valid, false otherwise
+     */
+    public static boolean verify(String message, String signatureStr, PublicKey publicKey) {
+        try {
+            Signature signature = Signature.getInstance("SHA256withRSA");
+            signature.initVerify(publicKey);
+            signature.update(message.getBytes(StandardCharsets.UTF_8));
+            return signature.verify(Base64.getDecoder().decode(signatureStr));
+        } catch (Exception e) {
+            System.err.println("[Security] Signature verification failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Encodes a PublicKey to Base64 string for network transmission.
+     * 
+     * @param publicKey the RSA public key
+     * @return Base64-encoded string representation
+     */
+    public static String encodePublicKey(PublicKey publicKey) {
+        return Base64.getEncoder().encodeToString(publicKey.getEncoded());
+    }
+
+    /**
+     * Decodes a Base64 string back to PublicKey.
+     * 
+     * @param encoded Base64-encoded public key string
+     * @return the decoded PublicKey, or null if decoding fails
+     */
+    public static PublicKey decodePublicKey(String encoded) {
+        try {
+            byte[] keyBytes = Base64.getDecoder().decode(encoded);
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            return keyFactory.generatePublic(new X509EncodedKeySpec(keyBytes));
+        } catch (Exception e) {
+            System.err.println("[Security] Failed to decode public key: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Verifies that a PeerID matches the hash of the given PublicKey.
+     * This ensures cryptographic binding between PeerID and PublicKey.
+     * 
+     * @param peerID    the claimed peer ID
+     * @param publicKey the public key to verify against
+     * @return true if peerID == hash(publicKey), false otherwise
+     */
+    public static boolean verifyPeerIdentity(String peerID, PublicKey publicKey) {
+        if (peerID == null || publicKey == null) {
+            return false;
+        }
+        String expectedPeerID = generatePeerID(publicKey);
+        return peerID.equals(expectedPeerID);
+    }
 }
