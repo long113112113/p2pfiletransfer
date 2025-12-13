@@ -27,18 +27,18 @@ public class PeerDiscoveryService {
     private volatile boolean isListening = false;
     private String myUsername;
     private int myPort;
-    private String myIp;
+
     private String myPeerID;
 
     private Consumer<PeerInfo> peerDiscoveredCallback;
 
-    public PeerDiscoveryService(String username, int port, String myIp, String peerID) {
+    public PeerDiscoveryService(String username, int port, String peerID) {
         this.myUsername = username;
         this.myPort = port;
-        this.myIp = myIp;
+
         this.myPeerID = peerID;
-        System.out.println("[Discovery] Initialized - Username: " + username + ", Port: " + port + ", IP: " + myIp
-                + ", PeerID: " + peerID);
+        System.out
+                .println("[Discovery] Initialized - Username: " + username + ", Port: " + port + ", PeerID: " + peerID);
     }
 
     public void setOnPeerDiscovered(Consumer<PeerInfo> callback) {
