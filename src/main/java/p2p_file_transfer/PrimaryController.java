@@ -5,6 +5,9 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -72,6 +75,8 @@ public class PrimaryController implements Initializable, ServerListener {
     private static final int PORT = 9999;
     private File selectedFile;
     private Map<String, PeerInfo> cachedPeers = new HashMap<>(); // PeerID -> PeerInfo
+    private ScheduledExecutorService autoDiscoveryScheduler;
+    private static final int AUTO_DISCOVERY_INTERVAL_SECONDS = 30;
 
     // --- Dragging Variables ---
     private double xOffset = 0;
@@ -116,6 +121,45 @@ public class PrimaryController implements Initializable, ServerListener {
         peerListView.setOnMouseClicked(event -> handlePeerClick());
 
         startSystemStatsThread();
+        startAutoDiscovery();
+    }
+
+    // --- Auto Discovery ---
+    private void startAutoDiscovery() {
+        autoDiscoveryScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "AutoDiscoveryScheduler");
+            t.setDaemon(true);
+            return t;
+        });
+
+        // Run immediately, then every 30 seconds
+        autoDiscoveryScheduler.scheduleAtFixedRate(() -> {
+            System.out.println("[AutoDiscovery] Scanning for peers...");
+            discoveryService.discoverPeers(peers -> {
+                Platform.runLater(() -> {
+                    // Only update if not currently showing "Scanning..." from manual refresh
+                    if (peerListView.getItems().size() == 1 &&
+                            peerListView.getItems().get(0).equals("Scanning...")) {
+                        return; // Skip auto-update during manual refresh
+                    }
+
+                    peerListView.getItems().clear();
+                    cachedPeers.clear();
+
+                    if (peers.isEmpty()) {
+                        peerListView.getItems().add("No peers found");
+                    } else {
+                        for (PeerInfo peer : peers) {
+                            cachedPeers.put(peer.getPeerID(), peer);
+                            peerListView.getItems().add(peer.toString());
+                        }
+                    }
+                    System.out.println("[AutoDiscovery] Found " + peers.size() + " peers");
+                });
+            });
+        }, 0, AUTO_DISCOVERY_INTERVAL_SECONDS, TimeUnit.SECONDS);
+
+        appendLog("[System] Auto-discovery enabled (every " + AUTO_DISCOVERY_INTERVAL_SECONDS + "s)");
     }
 
     private void makeDraggable(Node node) {
@@ -257,7 +301,7 @@ public class PrimaryController implements Initializable, ServerListener {
     @Override
     public void onMessageReceived(String message) {
         Platform.runLater(() -> {
-            appendLog("Friend: " + message);
+            appendLog(message);
         });
     }
 
@@ -271,6 +315,10 @@ public class PrimaryController implements Initializable, ServerListener {
         }
         if (discoveryService != null) {
             discoveryService.stopListener();
+        }
+        if (autoDiscoveryScheduler != null && !autoDiscoveryScheduler.isShutdown()) {
+            autoDiscoveryScheduler.shutdownNow();
+            System.out.println("[AutoDiscovery] Stopped");
         }
     }
 
