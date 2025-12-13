@@ -77,6 +77,9 @@ public class PrimaryController implements Initializable, ServerListener {
     private Map<String, PeerInfo> cachedPeers = new HashMap<>(); // PeerID -> PeerInfo
     private ScheduledExecutorService autoDiscoveryScheduler;
     private static final int AUTO_DISCOVERY_INTERVAL_SECONDS = 30;
+    private volatile boolean isManualRefreshing = false;
+    private volatile boolean systemStatsRunning = true;
+    private Thread systemStatsThread;
 
     // --- Dragging Variables ---
     private double xOffset = 0;
@@ -134,6 +137,9 @@ public class PrimaryController implements Initializable, ServerListener {
 
         // Run immediately, then every 30 seconds
         autoDiscoveryScheduler.scheduleAtFixedRate(() -> {
+            if (isManualRefreshing) {
+                return; // Skip if manual refresh is in progress
+            }
             discoveryService.discoverPeers(peers -> {
                 Platform.runLater(() -> {
                     // Only update if not currently showing "Scanning..." from manual refresh
@@ -255,8 +261,13 @@ public class PrimaryController implements Initializable, ServerListener {
 
     @FXML
     private void sendMessage(ActionEvent event) {
-        String targetPeerID = txtPeerID.getText().trim().toUpperCase();
-        String message = txtMessage.getText().trim();
+        String peerIdText = txtPeerID.getText();
+        if (peerIdText == null) {
+            appendLog("[System]: Please enter Peer ID!");
+            return;
+        }
+        String targetPeerID = peerIdText.trim().toUpperCase();
+        String message = txtMessage.getText() != null ? txtMessage.getText().trim() : "";
 
         if (targetPeerID.isEmpty()) {
             appendLog("[System]: Please enter Peer ID!");
@@ -291,6 +302,13 @@ public class PrimaryController implements Initializable, ServerListener {
             }
         } catch (Exception e) {
             appendLog("[Error]: Can't send. " + e.getMessage());
+            // Clear file state on error
+            if (this.selectedFile != null) {
+                this.selectedFile = null;
+                txtMessage.setEditable(true);
+                txtMessage.setStyle("");
+                txtMessage.clear();
+            }
         }
     }
 
@@ -316,10 +334,16 @@ public class PrimaryController implements Initializable, ServerListener {
             autoDiscoveryScheduler.shutdownNow();
             System.out.println("[AutoDiscovery] Stopped");
         }
+        // Stop system stats thread
+        systemStatsRunning = false;
+        if (systemStatsThread != null) {
+            systemStatsThread.interrupt();
+        }
     }
 
     @FXML
     private void refreshPeers() {
+        isManualRefreshing = true;
         peerListView.getItems().clear();
         peerListView.getItems().add("Scanning...");
 
@@ -336,6 +360,7 @@ public class PrimaryController implements Initializable, ServerListener {
                         peerListView.getItems().add(peer.toString());
                     }
                 }
+                isManualRefreshing = false;
             });
         });
     }
@@ -355,6 +380,10 @@ public class PrimaryController implements Initializable, ServerListener {
     }
 
     public void openFileChooser() {
+        if (txtChatArea.getScene() == null || txtChatArea.getScene().getWindow() == null) {
+            appendLog("[Error]: Cannot open file chooser - window not ready.");
+            return;
+        }
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select file");
         Stage stage = (Stage) txtChatArea.getScene().getWindow();
@@ -373,8 +402,8 @@ public class PrimaryController implements Initializable, ServerListener {
 
     // --- Mock System Stats ---
     private void startSystemStatsThread() {
-        Thread textUpdate = new Thread(() -> {
-            while (true) {
+        systemStatsThread = new Thread(() -> {
+            while (systemStatsRunning) {
                 try {
                     // Mock data
                     double cpuLoad = Math.random() * 20 + 5; // 5-25%
@@ -389,11 +418,12 @@ public class PrimaryController implements Initializable, ServerListener {
 
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     break;
                 }
             }
         });
-        textUpdate.setDaemon(true);
-        textUpdate.start();
+        systemStatsThread.setDaemon(true);
+        systemStatsThread.start();
     }
 }
