@@ -106,6 +106,7 @@ public class PrimaryController implements Initializable, ServerListener {
 
     // --- Pending Authentication ---
     private PeerInfo pendingAuthPeer = null;
+    private java.util.Timer authCodeExpireTimer = null;
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -472,14 +473,62 @@ public class PrimaryController implements Initializable, ServerListener {
             // Show popup panel with code
             lblAuthPeerName.setText(username + " [" + peerID + "] wants to connect");
             lblAuthCode.setText(code);
+
+            // Center the panel in playground
+            centerPanelInPlayground(authCodePanel);
+
             authCodePanel.setVisible(true);
             authCodePanel.toFront();
+
+            // Start 60-second expire timer
+            startAuthCodeExpireTimer();
         });
+    }
+
+    /**
+     * Centers a panel in the playground area.
+     */
+    private void centerPanelInPlayground(VBox panel) {
+        double playgroundWidth = playground.getWidth();
+        double playgroundHeight = playground.getHeight();
+        double panelWidth = panel.getPrefWidth();
+        double panelHeight = panel.getPrefHeight() > 0 ? panel.getPrefHeight() : 200;
+
+        panel.setLayoutX((playgroundWidth - panelWidth) / 2);
+        panel.setLayoutY((playgroundHeight - panelHeight) / 2);
+    }
+
+    /**
+     * Starts a timer to auto-hide the auth code panel after 60 seconds.
+     */
+    private void startAuthCodeExpireTimer() {
+        // Cancel any existing timer
+        if (authCodeExpireTimer != null) {
+            authCodeExpireTimer.cancel();
+        }
+
+        authCodeExpireTimer = new java.util.Timer("AuthCodeExpireTimer", true);
+        authCodeExpireTimer.schedule(new java.util.TimerTask() {
+            @Override
+            public void run() {
+                Platform.runLater(() -> {
+                    if (authCodePanel.isVisible()) {
+                        authCodePanel.setVisible(false);
+                        appendLog("[Auth] Code expired.");
+                    }
+                });
+            }
+        }, 60000); // 60 seconds
     }
 
     @FXML
     private void closeAuthCodePanel(ActionEvent event) {
         authCodePanel.setVisible(false);
+        // Cancel expire timer
+        if (authCodeExpireTimer != null) {
+            authCodeExpireTimer.cancel();
+            authCodeExpireTimer = null;
+        }
     }
 
     @Override
@@ -487,6 +536,11 @@ public class PrimaryController implements Initializable, ServerListener {
         Platform.runLater(() -> {
             // Auto-hide the code panel on the receiver side
             authCodePanel.setVisible(false);
+            // Cancel expire timer
+            if (authCodeExpireTimer != null) {
+                authCodeExpireTimer.cancel();
+                authCodeExpireTimer = null;
+            }
 
             if (success) {
                 appendLog("[Auth] Peer " + peerID + " authenticated successfully!");
@@ -577,6 +631,10 @@ public class PrimaryController implements Initializable, ServerListener {
     private void showCodeInputDialog(PeerInfo peer) {
         lblAuthInputPeerName.setText("Enter code from " + peer.getUsername());
         txtAuthCode.clear();
+
+        // Center the panel in playground
+        centerPanelInPlayground(authInputPanel);
+
         authInputPanel.setVisible(true);
         authInputPanel.toFront();
         txtAuthCode.requestFocus();
