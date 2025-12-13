@@ -103,7 +103,9 @@ public class PrimaryController implements Initializable, ServerListener {
         clientNode = new ClientNode();
         clientNode.setSenderInfo(myPeerID, username != null ? username : "Guest");
         serverNode = new ServerNode(PORT, this);
-        new Thread(serverNode).start();
+        Thread serverThread = new Thread(serverNode);
+        serverThread.setDaemon(true);
+        serverThread.start();
 
         discoveryService = new PeerDiscoveryService(
                 username != null ? username : "Guest",

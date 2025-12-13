@@ -39,6 +39,12 @@ public class App extends Application {
         }
     }
 
+    @Override
+    public void stop() throws Exception {
+        System.out.println("Application stopping...");
+        System.exit(0); // Ensure all threads (including ServerNode) are killed
+    }
+
     public static void main(String[] args) {
         launch();
     }
