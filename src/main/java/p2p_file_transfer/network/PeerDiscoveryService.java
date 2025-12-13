@@ -30,6 +30,8 @@ public class PeerDiscoveryService {
     private String myIp;
     private String myPeerID;
 
+    private Consumer<PeerInfo> peerDiscoveredCallback;
+
     public PeerDiscoveryService(String username, int port, String myIp, String peerID) {
         this.myUsername = username;
         this.myPort = port;
@@ -37,6 +39,10 @@ public class PeerDiscoveryService {
         this.myPeerID = peerID;
         System.out.println("[Discovery] Initialized - Username: " + username + ", Port: " + port + ", IP: " + myIp
                 + ", PeerID: " + peerID);
+    }
+
+    public void setOnPeerDiscovered(Consumer<PeerInfo> callback) {
+        this.peerDiscoveredCallback = callback;
     }
 
     public void startListener() {
@@ -51,7 +57,7 @@ public class PeerDiscoveryService {
                 listenerSocket = new DatagramSocket(DISCOVERY_PORT);
                 listenerSocket.setBroadcast(true);
                 System.out.println("[Discovery] Listener started on port " + DISCOVERY_PORT);
-                byte[] buffer = new byte[256];
+                byte[] buffer = new byte[1024]; // Increased buffer size for metadata
 
                 while (isListening) {
                     DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -63,7 +69,24 @@ public class PeerDiscoveryService {
                         System.out.println(
                                 "[Discovery] Received: '" + received + "' from " + senderIp + ":" + packet.getPort());
 
-                        if (received.equals(DISCOVER_REQUEST)) {
+                        if (received.startsWith(DISCOVER_REQUEST)) {
+                            // Try to parse sender info from request: P2P_DISCOVER|username|port|peerID
+                            if (received.contains("|")) {
+                                String[] parts = received.split("\\|");
+                                if (parts.length >= 4) {
+                                    String peerUsername = parts[1];
+                                    int peerPort = Integer.parseInt(parts[2]);
+                                    String peerID = parts[3];
+
+                                    if (!peerID.equals(myPeerID)) {
+                                        PeerInfo newPeer = new PeerInfo(senderIp, peerUsername, peerPort, peerID);
+                                        if (peerDiscoveredCallback != null) {
+                                            peerDiscoveredCallback.accept(newPeer);
+                                        }
+                                    }
+                                }
+                            }
+
                             // Response format: P2P_RESPONSE|username|port|peerID
                             String response = DISCOVER_RESPONSE + "|" + myUsername + "|" + myPort + "|" + myPeerID;
                             byte[] responseData = response.getBytes();
@@ -114,7 +137,9 @@ public class PeerDiscoveryService {
                 socket.setBroadcast(true);
                 socket.setSoTimeout(500);
 
-                byte[] sendData = DISCOVER_REQUEST.getBytes();
+                // Send request with MY info: P2P_DISCOVER|username|port|peerID
+                String requestMsg = DISCOVER_REQUEST + "|" + myUsername + "|" + myPort + "|" + myPeerID;
+                byte[] sendData = requestMsg.getBytes();
 
                 List<InetAddress> broadcastAddresses = getBroadcastAddresses();
                 System.out.println("[Discovery] Found " + broadcastAddresses.size() + " broadcast addresses");
@@ -133,7 +158,7 @@ public class PeerDiscoveryService {
                     }
                 }
 
-                byte[] receiveBuffer = new byte[256];
+                byte[] receiveBuffer = new byte[1024];
                 long startTime = System.currentTimeMillis();
 
                 while (System.currentTimeMillis() - startTime < TIMEOUT_MS) {
@@ -155,10 +180,16 @@ public class PeerDiscoveryService {
                                 int peerPort = Integer.parseInt(parts[2]);
                                 String peerID = parts[3];
 
-                                if (!peerIp.equals(myIp)) {
+                                if (!peerID.equals(myPeerID)) { // Use ID check instead of IP
                                     PeerInfo peer = new PeerInfo(peerIp, peerUsername, peerPort, peerID);
                                     foundPeers.add(peer);
                                     System.out.println("[Discovery] Found peer: " + peer);
+
+                                    // Also notify the active listener callback if set,
+                                    // so UI updates immediately even during scan
+                                    if (peerDiscoveredCallback != null) {
+                                        peerDiscoveredCallback.accept(peer);
+                                    }
                                 } else {
                                     System.out.println("[Discovery] Ignoring self response");
                                 }

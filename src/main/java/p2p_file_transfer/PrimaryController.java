@@ -112,6 +112,7 @@ public class PrimaryController implements Initializable, ServerListener {
                 PORT,
                 myIp,
                 myPeerID);
+        discoveryService.setOnPeerDiscovered(this::handlePeerDiscovered);
         discoveryService.startListener();
 
         lblUser.setText((username != null ? username : "Guest") + " | ID: " + myPeerID);
@@ -427,5 +428,17 @@ public class PrimaryController implements Initializable, ServerListener {
         });
         systemStatsThread.setDaemon(true);
         systemStatsThread.start();
+    }
+
+    private void handlePeerDiscovered(PeerInfo peer) {
+        Platform.runLater(() -> {
+            if (!cachedPeers.containsKey(peer.getPeerID())) {
+                cachedPeers.put(peer.getPeerID(), peer);
+                peerListView.getItems().add(peer.toString());
+                // Remove "No peers found" or "Scanning..." placeholder if present
+                peerListView.getItems().remove("No peers found");
+                peerListView.getItems().remove("Scanning...");
+            }
+        });
     }
 }
