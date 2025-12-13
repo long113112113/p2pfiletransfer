@@ -4,6 +4,7 @@ import java.io.File;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -13,15 +14,19 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import p2p_file_transfer.manager.SessionManager;
+import p2p_file_transfer.model.AuthenticationState;
 import p2p_file_transfer.model.PeerInfo;
 import p2p_file_transfer.network.ClientNode;
 import p2p_file_transfer.network.PeerDiscoveryService;
@@ -88,6 +93,9 @@ public class PrimaryController implements Initializable, ServerListener {
     // --- Collapse State ---
     private double chatPanelExpandedHeight = 400;
     private double peerPanelExpandedHeight = 300;
+
+    // --- Pending Authentication ---
+    private PeerInfo pendingAuthPeer = null;
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -441,5 +449,171 @@ public class PrimaryController implements Initializable, ServerListener {
                 peerListView.getItems().remove("Scanning...");
             }
         });
+    }
+
+    // ==================== AUTHENTICATION ====================
+
+    @Override
+    public void onAuthRequest(String peerID, String username, String code) {
+        Platform.runLater(() -> {
+            appendLog("[Auth] " + username + " [" + peerID + "] requests authentication.");
+            appendLog("[Auth] CODE: " + code + " (valid for 60 seconds)");
+
+            // Show dialog with code
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Authentication Request");
+            alert.setHeaderText("Peer " + username + " wants to connect");
+            alert.setContentText("Authentication Code: " + code + "\n\n" +
+                    "Tell this code to " + username + " so they can enter it.\n" +
+                    "The code expires in 60 seconds.");
+            alert.showAndWait();
+        });
+    }
+
+    @Override
+    public void onAuthResult(String peerID, boolean success) {
+        Platform.runLater(() -> {
+            if (success) {
+                appendLog("[Auth] Peer " + peerID + " authenticated successfully!");
+                // Update peer state in cache
+                PeerInfo peer = cachedPeers.get(peerID);
+                if (peer != null) {
+                    peer.setAuthState(AuthenticationState.AUTHENTICATED);
+                    refreshPeerListDisplay();
+                }
+            } else {
+                appendLog("[Auth] Authentication failed for " + peerID);
+            }
+        });
+    }
+
+    /**
+     * Handles authentication request button click.
+     */
+    @FXML
+    private void handleRequestAuth(ActionEvent event) {
+        String selected = peerListView.getSelectionModel().getSelectedItem();
+        if (selected == null || selected.equals("Scanning...") || selected.equals("No peers found")) {
+            appendLog("[System] Please select a peer first.");
+            return;
+        }
+
+        // Extract Peer ID
+        int start = selected.indexOf("[");
+        int end = selected.indexOf("]");
+        if (start == -1 || end == -1) {
+            appendLog("[System] Invalid peer selection.");
+            return;
+        }
+        String peerID = selected.substring(start + 1, end);
+        PeerInfo peer = cachedPeers.get(peerID);
+        if (peer == null) {
+            appendLog("[System] Peer not found in cache.");
+            return;
+        }
+
+        // Check if already authenticated
+        if (peer.getAuthState() == AuthenticationState.AUTHENTICATED) {
+            appendLog("[System] Peer " + peerID + " is already authenticated.");
+            return;
+        }
+
+        pendingAuthPeer = peer;
+        appendLog("[Auth] Sending authentication request to " + peer.getUsername() + "...");
+
+        clientNode.sendAuthRequest(peer.getIp(), peer.getPort(), new ClientNode.AuthCallback() {
+            @Override
+            public void onChallengeReceived() {
+                Platform.runLater(() -> {
+                    appendLog(
+                            "[Auth] Challenge received. Enter the code shown on " + peer.getUsername() + "'s screen.");
+                    showCodeInputDialog(peer);
+                });
+            }
+
+            @Override
+            public void onAuthResult(boolean success) {
+                Platform.runLater(() -> {
+                    if (success) {
+                        appendLog("[Auth] You are now authenticated with " + peer.getUsername() + "!");
+                        peer.setAuthState(AuthenticationState.AUTHENTICATED);
+                        refreshPeerListDisplay();
+                    } else {
+                        appendLog("[Auth] Authentication failed. Wrong code or expired.");
+                        peer.setAuthState(AuthenticationState.REJECTED);
+                    }
+                    pendingAuthPeer = null;
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                Platform.runLater(() -> {
+                    appendLog("[Auth] Error: " + message);
+                    pendingAuthPeer = null;
+                });
+            }
+        });
+    }
+
+    /**
+     * Shows dialog to input the 6-digit code.
+     */
+    private void showCodeInputDialog(PeerInfo peer) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Enter Authentication Code");
+        dialog.setHeaderText("Enter the 6-digit code from " + peer.getUsername());
+        dialog.setContentText("Code:");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(code -> {
+            if (code.length() == 6 && code.matches("\\d+")) {
+                appendLog("[Auth] Sending code to " + peer.getUsername() + "...");
+                clientNode.sendAuthResponse(peer.getIp(), peer.getPort(), code, new ClientNode.AuthCallback() {
+                    @Override
+                    public void onChallengeReceived() {
+                        // Not expected here
+                    }
+
+                    @Override
+                    public void onAuthResult(boolean success) {
+                        Platform.runLater(() -> {
+                            if (success) {
+                                appendLog("[Auth] Authentication successful!");
+                                peer.setAuthState(AuthenticationState.AUTHENTICATED);
+                                refreshPeerListDisplay();
+                            } else {
+                                appendLog("[Auth] Authentication failed.");
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onError(String message) {
+                        Platform.runLater(() -> appendLog("[Auth] Error: " + message));
+                    }
+                });
+            } else {
+                appendLog("[Auth] Invalid code format. Must be 6 digits.");
+            }
+        });
+    }
+
+    /**
+     * Refreshes the peer list display to show authentication status.
+     */
+    private void refreshPeerListDisplay() {
+        peerListView.getItems().clear();
+        if (cachedPeers.isEmpty()) {
+            peerListView.getItems().add("No peers found");
+        } else {
+            for (PeerInfo peer : cachedPeers.values()) {
+                String display = peer.toString();
+                if (peer.getAuthState() == AuthenticationState.AUTHENTICATED) {
+                    display += " [TRUSTED]";
+                }
+                peerListView.getItems().add(display);
+            }
+        }
     }
 }

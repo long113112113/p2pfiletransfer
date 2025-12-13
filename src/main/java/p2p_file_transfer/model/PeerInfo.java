@@ -8,6 +8,7 @@ public class PeerInfo {
     private int port;
     private String peerID;
     private PublicKey publicKey;
+    private AuthenticationState authState = AuthenticationState.UNKNOWN;
 
     public PeerInfo(String ip, String username, int port, String peerID) {
         this.ip = ip;
@@ -47,6 +48,14 @@ public class PeerInfo {
 
     public void setPublicKey(PublicKey publicKey) {
         this.publicKey = publicKey;
+    }
+
+    public AuthenticationState getAuthState() {
+        return authState;
+    }
+
+    public void setAuthState(AuthenticationState authState) {
+        this.authState = authState;
     }
 
     @Override

@@ -3,6 +3,7 @@ package p2p_file_transfer.network;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+
 import p2p_file_transfer.model.Packet;
 
 public class ServerNode implements Runnable {
@@ -11,19 +12,27 @@ public class ServerNode implements Runnable {
     private ServerListener listener;
     private ServerSocket serverSocket;
 
+    // Authentication Service
+    private AuthenticationService authService;
+
     private static final String SAVE_DIR = "ReceivedFiles";
 
     public ServerNode(int port, ServerListener listener) {
         this.port = port;
         this.isRunning = true;
         this.listener = listener;
+        this.authService = new AuthenticationService();
+    }
+
+    public AuthenticationService getAuthService() {
+        return authService;
     }
 
     @Override
     public void run() {
         try {
             serverSocket = new ServerSocket(port);
-            serverSocket.setSoTimeout(1000); // 1 second timeout for graceful shutdown check
+            serverSocket.setSoTimeout(1000);
             System.out.println("Server is listening on port: " + port);
 
             while (isRunning) {
@@ -124,13 +133,34 @@ public class ServerNode implements Runnable {
 
         @Override
         public void run() {
-            try (DataInputStream in = new DataInputStream(socket.getInputStream())) {
+            try (DataInputStream in = new DataInputStream(socket.getInputStream());
+                    DataOutputStream out = new DataOutputStream(socket.getOutputStream())) {
                 int type = in.readInt();
 
+                // Handle Authentication Packets
+                if (type == Packet.TYPE_AUTH_REQUEST) {
+                    handleAuthRequest(in, out);
+                    return;
+                } else if (type == Packet.TYPE_AUTH_RESPONSE) {
+                    handleAuthResponse(in, out);
+                    return;
+                }
+
+                // For HELLO and FILE, check if sender is authenticated
                 if (type == Packet.TYPE_HELLO) {
                     String senderPeerID = in.readUTF();
                     String senderUsername = in.readUTF();
                     String message = in.readUTF();
+
+                    // Check authentication
+                    if (!authService.isAuthenticated(senderPeerID)) {
+                        System.out.println("[Security] Blocked message from unauthenticated peer: " + senderPeerID);
+                        if (listener != null) {
+                            listener.onMessageReceived("[Security] Blocked message from unauthenticated peer: "
+                                    + senderUsername + " [" + senderPeerID + "]. Request authentication first.");
+                        }
+                        return;
+                    }
 
                     if (listener != null) {
                         // Format: "senderUsername [senderPeerID]: message"
@@ -142,6 +172,26 @@ public class ServerNode implements Runnable {
                     String senderUsername = in.readUTF();
                     String fileName = in.readUTF();
                     long fileSize = in.readLong();
+
+                    // Check authentication
+                    if (!authService.isAuthenticated(senderPeerID)) {
+                        System.out.println("[Security] Blocked file from unauthenticated peer: " + senderPeerID);
+                        if (listener != null) {
+                            listener.onMessageReceived("[Security] Blocked file from unauthenticated peer: "
+                                    + senderUsername + " [" + senderPeerID + "]. Request authentication first.");
+                        }
+                        // Drain the file data to prevent socket issues
+                        long remaining = fileSize;
+                        byte[] buffer = new byte[4096];
+                        while (remaining > 0) {
+                            int toRead = (int) Math.min(buffer.length, remaining);
+                            int read = in.read(buffer, 0, toRead);
+                            if (read == -1)
+                                break;
+                            remaining -= read;
+                        }
+                        return;
+                    }
 
                     // Sanitize filename to prevent Path Traversal attacks
                     String safeFileName = sanitizeFileName(fileName);
@@ -197,6 +247,56 @@ public class ServerNode implements Runnable {
                     socket.close();
                 } catch (IOException e) {
                 }
+            }
+        }
+
+        /**
+         * Handles incoming authentication request.
+         * Generates a 6-digit code and notifies UI to display it.
+         */
+        private void handleAuthRequest(DataInputStream in, DataOutputStream out) throws IOException {
+            String requesterPeerID = in.readUTF();
+            String requesterUsername = in.readUTF();
+
+            // Generate pairing code
+            String code = authService.generatePairingCode();
+            authService.storePendingAuth(requesterPeerID, code);
+
+            System.out.println("[Auth] Received auth request from " + requesterUsername + " [" + requesterPeerID + "]");
+
+            // Notify UI to display the code
+            if (listener != null) {
+                listener.onAuthRequest(requesterPeerID, requesterUsername, code);
+            }
+
+            // Send challenge response (just acknowledge)
+            out.writeInt(Packet.TYPE_AUTH_CHALLENGE);
+            out.writeUTF("CHALLENGE_SENT");
+            out.flush();
+        }
+
+        /**
+         * Handles incoming authentication response (code verification).
+         */
+        private void handleAuthResponse(DataInputStream in, DataOutputStream out) throws IOException {
+            String peerID = in.readUTF();
+            String submittedCode = in.readUTF();
+
+            System.out.println("[Auth] Received code from " + peerID + ": " + submittedCode);
+
+            boolean success = authService.verifyCode(peerID, submittedCode);
+            if (success) {
+                authService.addAuthenticatedPeer(peerID);
+            }
+
+            // Send result
+            out.writeInt(Packet.TYPE_AUTH_RESULT);
+            out.writeBoolean(success);
+            out.flush();
+
+            // Notify UI
+            if (listener != null) {
+                listener.onAuthResult(peerID, success);
             }
         }
     }
