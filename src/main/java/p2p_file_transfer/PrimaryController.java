@@ -4,7 +4,6 @@ import java.io.File;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -14,14 +13,11 @@ import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.scene.Node;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -72,6 +68,20 @@ public class PrimaryController implements Initializable, ServerListener {
     private Button btnSend;
     @FXML
     private ListView<String> peerListView;
+
+    // --- Authentication Popup Panels ---
+    @FXML
+    private VBox authCodePanel;
+    @FXML
+    private Label lblAuthPeerName;
+    @FXML
+    private Label lblAuthCode;
+    @FXML
+    private VBox authInputPanel;
+    @FXML
+    private Label lblAuthInputPeerName;
+    @FXML
+    private TextField txtAuthCode;
 
     // --- Logic & Network ---
     private ServerNode serverNode;
@@ -459,15 +469,17 @@ public class PrimaryController implements Initializable, ServerListener {
             appendLog("[Auth] " + username + " [" + peerID + "] requests authentication.");
             appendLog("[Auth] CODE: " + code + " (valid for 60 seconds)");
 
-            // Show dialog with code
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
-            alert.setTitle("Authentication Request");
-            alert.setHeaderText("Peer " + username + " wants to connect");
-            alert.setContentText("Authentication Code: " + code + "\n\n" +
-                    "Tell this code to " + username + " so they can enter it.\n" +
-                    "The code expires in 60 seconds.");
-            alert.showAndWait();
+            // Show popup panel with code
+            lblAuthPeerName.setText(username + " [" + peerID + "] wants to connect");
+            lblAuthCode.setText(code);
+            authCodePanel.setVisible(true);
+            authCodePanel.toFront();
         });
+    }
+
+    @FXML
+    private void closeAuthCodePanel(ActionEvent event) {
+        authCodePanel.setVisible(false);
     }
 
     @Override
@@ -557,46 +569,67 @@ public class PrimaryController implements Initializable, ServerListener {
     }
 
     /**
-     * Shows dialog to input the 6-digit code.
+     * Shows popup panel to input the 6-digit code.
      */
     private void showCodeInputDialog(PeerInfo peer) {
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Enter Authentication Code");
-        dialog.setHeaderText("Enter the 6-digit code from " + peer.getUsername());
-        dialog.setContentText("Code:");
+        lblAuthInputPeerName.setText("Enter code from " + peer.getUsername());
+        txtAuthCode.clear();
+        authInputPanel.setVisible(true);
+        authInputPanel.toFront();
+        txtAuthCode.requestFocus();
+    }
 
-        Optional<String> result = dialog.showAndWait();
-        result.ifPresent(code -> {
-            if (code.length() == 6 && code.matches("\\d+")) {
-                appendLog("[Auth] Sending code to " + peer.getUsername() + "...");
-                clientNode.sendAuthResponse(peer.getIp(), peer.getPort(), code, new ClientNode.AuthCallback() {
-                    @Override
-                    public void onChallengeReceived() {
-                        // Not expected here
-                    }
+    @FXML
+    private void submitAuthCode(ActionEvent event) {
+        if (pendingAuthPeer == null) {
+            appendLog("[Auth] No pending authentication.");
+            authInputPanel.setVisible(false);
+            return;
+        }
 
-                    @Override
-                    public void onAuthResult(boolean success) {
-                        Platform.runLater(() -> {
-                            if (success) {
-                                appendLog("[Auth] Authentication successful!");
-                                peer.setAuthState(AuthenticationState.AUTHENTICATED);
-                                refreshPeerListDisplay();
-                            } else {
-                                appendLog("[Auth] Authentication failed.");
-                            }
-                        });
-                    }
+        String code = txtAuthCode.getText().trim();
+        if (code.length() == 6 && code.matches("\\d+")) {
+            appendLog("[Auth] Sending code to " + pendingAuthPeer.getUsername() + "...");
+            authInputPanel.setVisible(false);
 
-                    @Override
-                    public void onError(String message) {
-                        Platform.runLater(() -> appendLog("[Auth] Error: " + message));
-                    }
-                });
-            } else {
-                appendLog("[Auth] Invalid code format. Must be 6 digits.");
-            }
-        });
+            PeerInfo peer = pendingAuthPeer;
+            clientNode.sendAuthResponse(peer.getIp(), peer.getPort(), code, new ClientNode.AuthCallback() {
+                @Override
+                public void onChallengeReceived() {
+                    // Not expected here
+                }
+
+                @Override
+                public void onAuthResult(boolean success) {
+                    Platform.runLater(() -> {
+                        if (success) {
+                            appendLog("[Auth] Authentication successful!");
+                            peer.setAuthState(AuthenticationState.AUTHENTICATED);
+                            refreshPeerListDisplay();
+                        } else {
+                            appendLog("[Auth] Authentication failed.");
+                        }
+                        pendingAuthPeer = null;
+                    });
+                }
+
+                @Override
+                public void onError(String message) {
+                    Platform.runLater(() -> {
+                        appendLog("[Auth] Error: " + message);
+                        pendingAuthPeer = null;
+                    });
+                }
+            });
+        } else {
+            appendLog("[Auth] Invalid code format. Must be 6 digits.");
+        }
+    }
+
+    @FXML
+    private void closeAuthInputPanel(ActionEvent event) {
+        authInputPanel.setVisible(false);
+        pendingAuthPeer = null;
     }
 
     /**

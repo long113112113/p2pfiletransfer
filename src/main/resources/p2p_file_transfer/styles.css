@@ -192,3 +192,31 @@
 .list-cell:even {
     -fx-background-color: #2e2e2e;
 }
+
+/* === Authentication Panels === */
+.auth-panel {
+    -fx-background-color: #2a2a3a;
+    -fx-border-color: #5a5aff;
+    -fx-border-width: 2;
+}
+
+.auth-peer-name {
+    -fx-font-size: 14px;
+    -fx-text-fill: #aaaaff;
+}
+
+.auth-code {
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #00ff88;
+    -fx-font-family: 'Consolas', monospace;
+    -fx-padding: 10 20 10 20;
+    -fx-background-color: #1a1a2a;
+    -fx-background-radius: 8;
+}
+
+.auth-hint {
+    -fx-font-size: 11px;
+    -fx-text-fill: #888888;
+    -fx-font-style: italic;
+}
