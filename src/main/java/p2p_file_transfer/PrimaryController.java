@@ -134,7 +134,6 @@ public class PrimaryController implements Initializable, ServerListener {
 
         // Run immediately, then every 30 seconds
         autoDiscoveryScheduler.scheduleAtFixedRate(() -> {
-            System.out.println("[AutoDiscovery] Scanning for peers...");
             discoveryService.discoverPeers(peers -> {
                 Platform.runLater(() -> {
                     // Only update if not currently showing "Scanning..." from manual refresh
@@ -154,12 +153,9 @@ public class PrimaryController implements Initializable, ServerListener {
                             peerListView.getItems().add(peer.toString());
                         }
                     }
-                    System.out.println("[AutoDiscovery] Found " + peers.size() + " peers");
                 });
             });
         }, 0, AUTO_DISCOVERY_INTERVAL_SECONDS, TimeUnit.SECONDS);
-
-        appendLog("[System] Auto-discovery enabled (every " + AUTO_DISCOVERY_INTERVAL_SECONDS + "s)");
     }
 
     private void makeDraggable(Node node) {
