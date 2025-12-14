@@ -23,6 +23,17 @@ public class LoginController {
     @FXML
     private Label statusLabel;
 
+    /**
+     * Validates that the username contains only alphanumeric characters and underscores.
+     * This prevents path traversal attacks (e.g., "../") and ensures filename safety.
+     *
+     * @param username the username to validate
+     * @return true if valid, false otherwise
+     */
+    private boolean isValidUsername(String username) {
+        return username != null && username.matches("^[a-zA-Z0-9_]+$");
+    }
+
     @FXML
     private void handleLogin(ActionEvent event) {
         String username = usernameField.getText().trim();
@@ -30,6 +41,11 @@ public class LoginController {
 
         if (username.isEmpty() || password.isEmpty()) {
             statusLabel.setText("Please enter username and password.");
+            return;
+        }
+
+        if (!isValidUsername(username)) {
+            statusLabel.setText("Invalid username. Use only alphanumeric characters and underscores.");
             return;
         }
 
@@ -73,6 +89,11 @@ public class LoginController {
 
         if (username.isEmpty() || password.isEmpty()) {
             statusLabel.setText("Please enter username and password.");
+            return;
+        }
+
+        if (!isValidUsername(username)) {
+            statusLabel.setText("Invalid username. Use only alphanumeric characters and underscores.");
             return;
         }
 
