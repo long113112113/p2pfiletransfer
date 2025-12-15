@@ -271,4 +271,15 @@ public class CryptoUtils {
         String expectedPeerID = generatePeerID(publicKey);
         return peerID.equals(expectedPeerID);
     }
+
+    /**
+     * Validates that the username contains only alphanumeric characters and underscores.
+     * This prevents path traversal vulnerabilities when using the username in file paths.
+     *
+     * @param username the username to validate
+     * @return true if valid, false otherwise
+     */
+    public static boolean isValidUsername(String username) {
+        return username != null && username.matches("^[a-zA-Z0-9_]+$");
+    }
 }
