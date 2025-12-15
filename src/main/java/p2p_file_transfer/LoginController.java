@@ -33,6 +33,11 @@ public class LoginController {
             return;
         }
 
+        if (!CryptoUtils.isValidUsername(username)) {
+            statusLabel.setText("Invalid username. Only alphanumeric and underscores allowed.");
+            return;
+        }
+
         String pemFilename = username + ".pem";
 
         try {
@@ -76,6 +81,11 @@ public class LoginController {
             return;
         }
 
+        if (!CryptoUtils.isValidUsername(username)) {
+            statusLabel.setText("Invalid username. Only alphanumeric and underscores allowed.");
+            return;
+        }
+
         String pemFilename = username + ".pem";
         String pubFilename = username + ".pub";
 
@@ -107,4 +117,5 @@ public class LoginController {
             statusLabel.setText("Registration failed: " + e.getMessage());
         }
     }
+
 }
