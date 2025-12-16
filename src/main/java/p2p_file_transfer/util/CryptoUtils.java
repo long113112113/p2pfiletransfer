@@ -271,4 +271,19 @@ public class CryptoUtils {
         String expectedPeerID = generatePeerID(publicKey);
         return peerID.equals(expectedPeerID);
     }
+
+    /**
+     * Validates a username to prevent Path Traversal and other injection attacks.
+     * Allowed characters: Alphanumeric (a-z, A-Z, 0-9) and underscore (_).
+     *
+     * @param username the username to validate
+     * @return true if valid, false otherwise
+     */
+    public static boolean isValidUsername(String username) {
+        if (username == null || username.trim().isEmpty()) {
+            return false;
+        }
+        // Regex matches only alphanumeric characters and underscores.
+        return username.matches("^[a-zA-Z0-9_]+$");
+    }
 }
