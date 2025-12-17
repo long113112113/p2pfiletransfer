@@ -33,6 +33,11 @@ public class LoginController {
             return;
         }
 
+        if (!CryptoUtils.isValidUsername(username)) {
+            statusLabel.setText("Invalid username. Alphanumeric only.");
+            return;
+        }
+
         String pemFilename = username + ".pem";
 
         try {
@@ -73,6 +78,11 @@ public class LoginController {
 
         if (username.isEmpty() || password.isEmpty()) {
             statusLabel.setText("Please enter username and password.");
+            return;
+        }
+
+        if (!CryptoUtils.isValidUsername(username)) {
+            statusLabel.setText("Invalid username. Alphanumeric only.");
             return;
         }
 
